@@ -6,3 +6,4 @@ vite.config.ts
 *worker.ts
 serviceWorkerRegistration.ts
 capacitor.config.ts
+types.d.ts

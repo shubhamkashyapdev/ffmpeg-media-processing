@@ -1,48 +1,65 @@
-import { IonButton } from '@ionic/react'
-import { motion } from 'framer-motion'
-import { useState } from 'react'
+import { createFFmpeg, fetchFile } from '@ffmpeg/ffmpeg'
+import { IonButton, IonIcon, IonLabel } from '@ionic/react'
+import { useEffect, useState } from 'react'
 
-import { DialogBox } from '@/components/common'
+const ffmpeg = createFFmpeg({ log: true })
 
-interface ContainerProps {
-  name: string
-}
+function ExploreContainer() {
+  const [ready, setReady] = useState(false)
+  const [video, setVideo] = useState<any>()
+  const [gif, setGif] = useState('')
 
-const ExploreContainer: React.FC<ContainerProps> = ({ name }) => {
-  const [isOpen, setIsOpen] = useState(false)
-  function closeModal() {
-    setIsOpen(false)
+  const load = async () => {
+    await ffmpeg.load()
+    setReady(true)
   }
 
-  function openModal() {
-    setIsOpen(true)
+  const clearState = () => {
+    setVideo(null)
+    setGif('')
   }
 
-  return (
-    <motion.div
-      initial={{ x: -200 }}
-      animate={{ x: 0 }}
-      transition={{ duration: 1 }}
-      className="grid place-content-center py-10"
-    >
-      <div className="rounded-md p-4 text-center shadow-lg">
-        <strong className="text-indigo-500 underline">{name}</strong>
-        <p>
-          Explore
-          <a
-            target="_blank"
-            rel="noopener noreferrer"
-            href="https://ionicframework.com/docs/components"
-          >
-            UI Components
-          </a>
-        </p>
-        <IonButton fill="outline" onClick={openModal}>
-          <span>Open Dialog</span>
-        </IonButton>
+  useEffect(() => {
+    load()
+  }, [])
+
+  const convertToGif = async () => {
+    // Write the file to memory
+    ffmpeg.FS('writeFile', 'test.mp4', await fetchFile(video))
+
+    // Run the FFMpeg command
+    await ffmpeg.run('-i', 'test.mp4', '-t', '2.5', '-ss', '2.0', '-f', 'gif', 'out.gif')
+
+    // Read the result
+    const data = ffmpeg.FS('readFile', 'out.gif')
+
+    // Create a URL
+    const url = URL.createObjectURL(new Blob([data.buffer], { type: 'image/gif' }))
+    setGif(url)
+  }
+
+  return ready ? (
+    <div className="grid place-content-center">
+      {video && <video controls width="250" src={URL.createObjectURL(video)}></video>}
+      <div className="my-4">
+        <IonIcon name="videocam-outline" />
+        <input type="file" aria-label="" onChange={(e: any) => setVideo(e.target.files?.item(0))} />
       </div>
-      <DialogBox closeModal={closeModal} isOpen={isOpen} />
-    </motion.div>
+
+      <IonButton onClick={() => convertToGif()}>Convert</IonButton>
+      {gif && (
+        <>
+          <img src={gif} width="250" />
+          <a href={gif} className="my-4 inline-block text-center" download>
+            <IonButton onClick={() => clearState()}>
+              <IonLabel>Download</IonLabel>
+            </IonButton>
+          </a>
+        </>
+      )}
+    </div>
+  ) : (
+    <p>Loading...</p>
   )
 }
 
